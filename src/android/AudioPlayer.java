@@ -23,6 +23,7 @@ import android.media.MediaPlayer;
 import android.media.MediaPlayer.OnCompletionListener;
 import android.media.MediaPlayer.OnErrorListener;
 import android.media.MediaPlayer.OnPreparedListener;
+import android.media.MediaPlayer.OnBufferingUpdateListener;
 import android.media.MediaRecorder;
 import android.os.Environment;
 
@@ -48,7 +49,7 @@ import java.util.LinkedList;
  *      android_asset:      file name must start with /android_asset/sound.mp3
  *      sdcard:             file name is just sound.mp3
  */
-public class AudioPlayer implements OnCompletionListener, OnPreparedListener, OnErrorListener {
+public class AudioPlayer implements OnCompletionListener, OnPreparedListener, OnErrorListener, OnBufferingUpdateListener {
 
     // AudioPlayer modes
     public enum MODE { NONE, PLAY, RECORD };
@@ -68,6 +69,7 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
     private static int MEDIA_STATE = 1;
     private static int MEDIA_DURATION = 2;
     private static int MEDIA_POSITION = 3;
+    private static int MEDIA_BUFFER = 4;
     private static int MEDIA_ERROR = 9;
 
     // Media error codes
@@ -108,11 +110,11 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
 
     private String generateTempFile() {
       String tempFileName = null;
-      if (Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)) {
-          tempFileName = Environment.getExternalStorageDirectory().getAbsolutePath() + "/tmprecording-" + System.currentTimeMillis() + ".3gp";
-      } else {
-          tempFileName = "/data/data/" + handler.cordova.getActivity().getPackageName() + "/cache/tmprecording-" + System.currentTimeMillis() + ".3gp";
-      }
+    //   if (Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)) {
+    //       tempFileName = Environment.getExternalStorageDirectory().getAbsolutePath() + "/tmprecording-" + System.currentTimeMillis() + ".m4a";
+    //   } else {
+          tempFileName = "/data/data/" + handler.cordova.getActivity().getPackageName() + "/cache/tmprecording-" + System.currentTimeMillis() + ".m4a";
+    //   }
       return tempFileName;
     }
 
@@ -130,9 +132,7 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
             this.player = null;
         }
         if (this.recorder != null) {
-            if (this.state != STATE.MEDIA_STOPPED) {
-                this.stopRecording(true);
-            }
+            this.stopRecording(true);
             this.recorder.release();
             this.recorder = null;
         }
@@ -153,7 +153,7 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
             this.audioFile = file;
             this.recorder = new MediaRecorder();
             this.recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-            this.recorder.setOutputFormat(MediaRecorder.OutputFormat.AAC_ADTS); // RAW_AMR);
+            this.recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4); // RAW_AMR);
             this.recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC); //AMR_NB);
             this.tempFile = generateTempFile();
             this.recorder.setOutputFile(this.tempFile);
@@ -199,44 +199,8 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
         if (size == 1) {
             String logMsg = "renaming " + this.tempFile + " to " + file;
             LOG.d(LOG_TAG, logMsg);
-
             File f = new File(this.tempFile);
-            if (!f.renameTo(new File(file))) {
-
-                FileOutputStream outputStream = null;
-                File outputFile = null;
-                try {
-                    outputFile = new File(file);
-                    outputStream = new FileOutputStream(outputFile);
-                    FileInputStream inputStream = null;
-                    File inputFile = null;
-                    try {
-                        inputFile = new File(this.tempFile);
-                        LOG.d(LOG_TAG,  "INPUT FILE LENGTH: " + String.valueOf(inputFile.length()) );
-                        inputStream = new FileInputStream(inputFile);
-                        copy(inputStream, outputStream, false);
-                    } catch (Exception e) {
-                        LOG.e(LOG_TAG, e.getLocalizedMessage(), e);
-                   } finally {
-                        if (inputStream != null) try {
-                            inputStream.close();
-                            inputFile.delete();
-                            inputFile = null;
-                        } catch (Exception e) {
-                            LOG.e(LOG_TAG, e.getLocalizedMessage(), e);
-                        }
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                } finally {
-                    if (outputStream != null) try {
-                        outputStream.close();
-                        LOG.d(LOG_TAG, "OUTPUT FILE LENGTH: " + String.valueOf(outputFile.length()) );
-                    } catch (Exception e) {
-                        LOG.e(LOG_TAG, e.getLocalizedMessage(), e);
-                    }
-                }
-            }
+            if (!f.renameTo(new File(file))) LOG.e(LOG_TAG, "FAILED " + logMsg);
         }
         // more than one file so the user must have pause recording. We'll need to concat files.
         else {
@@ -682,6 +646,7 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
             this.setMode(MODE.PLAY);
             this.setState(STATE.MEDIA_STARTING);
             this.player.setOnPreparedListener(this);
+            this.player.setOnBufferingUpdateListener(this);
             this.player.prepareAsync();
         }
         else {
@@ -703,6 +668,7 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
             }
                 this.setState(STATE.MEDIA_STARTING);
                 this.player.setOnPreparedListener(this);
+                this.player.setOnBufferingUpdateListener(this);
                 this.player.prepare();
 
                 // Get duration
@@ -756,5 +722,14 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
             }
         }
         return 0;
+    }
+
+    /**
+     * Callback to be invoked when the media source is ready for playback.
+     *
+     * @param player           The MediaPlayer that is ready for playback
+     */
+    public void onBufferingUpdate(MediaPlayer player, int percent) {
+        sendStatusChange(MEDIA_BUFFER, null, percent * 1.0f);
     }
 }
