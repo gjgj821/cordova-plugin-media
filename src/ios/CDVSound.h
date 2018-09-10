@@ -43,6 +43,7 @@ enum CDVMediaMsg {
     MEDIA_STATE = 1,
     MEDIA_DURATION = 2,
     MEDIA_POSITION = 3,
+    MEDIA_BUFFER = 4,
     MEDIA_ERROR = 9
 };
 typedef NSUInteger CDVMediaMsg;
