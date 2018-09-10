@@ -38,7 +38,7 @@ var mediaObjects = {};
  * @param statusCallback        The callback to be called when media status has changed.
  *                                  statusCallback(int statusCode) - OPTIONAL
  */
-var Media = function(src, successCallback, errorCallback, statusCallback) {
+var Media = function (src, successCallback, errorCallback, statusCallback) {
     argscheck.checkArgs('SFFF', 'Media', arguments);
     this.id = utils.createUUID();
     mediaObjects[this.id] = this;
@@ -47,6 +47,7 @@ var Media = function(src, successCallback, errorCallback, statusCallback) {
     this.errorCallback = errorCallback;
     this.statusCallback = statusCallback;
     this._duration = -1;
+    this._buffer = -1;
     this._position = -1;
 
     try {
@@ -61,7 +62,7 @@ var Media = function(src, successCallback, errorCallback, statusCallback) {
  * @param  {Media} media Media object
  * @return {Audio}       Audio element 
  */
-function createNode (media) {
+function createNode(media) {
     var node = new Audio();
 
     node.onplay = function () {
@@ -100,6 +101,7 @@ function createNode (media) {
 Media.MEDIA_STATE = 1;
 Media.MEDIA_DURATION = 2;
 Media.MEDIA_POSITION = 3;
+Media.MEDIA_BUFFER = 4;
 Media.MEDIA_ERROR = 9;
 
 // Media states
@@ -113,7 +115,7 @@ Media.MEDIA_MSG = ["None", "Starting", "Running", "Paused", "Stopped"];
 /**
  * Start or resume playing audio file.
  */
-Media.prototype.play = function() {
+Media.prototype.play = function () {
 
     // if Media was released, then node will be null and we need to create it again
     if (!this.node) {
@@ -130,7 +132,7 @@ Media.prototype.play = function() {
 /**
  * Stop playing audio file.
  */
-Media.prototype.stop = function() {
+Media.prototype.stop = function () {
     try {
         this.pause();
         this.seekTo(0);
@@ -143,7 +145,7 @@ Media.prototype.stop = function() {
 /**
  * Seek or jump to a new time in the track..
  */
-Media.prototype.seekTo = function(milliseconds) {
+Media.prototype.seekTo = function (milliseconds) {
     try {
         this.node.currentTime = milliseconds / 1000;
     } catch (err) {
@@ -154,13 +156,14 @@ Media.prototype.seekTo = function(milliseconds) {
 /**
  * Pause playing audio file.
  */
-Media.prototype.pause = function() {
+Media.prototype.pause = function () {
     try {
         this.node.pause();
         Media.onStatus(this.id, Media.MEDIA_STATE, Media.MEDIA_PAUSED);
     } catch (err) {
         Media.onStatus(this.id, Media.MEDIA_ERROR, err);
-    }};
+    }
+};
 
 /**
  * Get duration of an audio file.
@@ -168,14 +171,14 @@ Media.prototype.pause = function() {
  *
  * @return      duration or -1 if not known.
  */
-Media.prototype.getDuration = function() {
+Media.prototype.getDuration = function () {
     return this._duration;
 };
 
 /**
  * Get position of audio.
  */
-Media.prototype.getCurrentPosition = function(success, fail) {
+Media.prototype.getCurrentPosition = function (success, fail) {
     try {
         var p = this.node.currentTime;
         Media.onStatus(this.id, Media.MEDIA_POSITION, p);
@@ -188,59 +191,60 @@ Media.prototype.getCurrentPosition = function(success, fail) {
 /**
  * Start recording audio file.
  */
-Media.prototype.startRecord = function() {
+Media.prototype.startRecord = function () {
     Media.onStatus(this.id, Media.MEDIA_ERROR, "Not supported");
 };
 
 /**
  * Stop recording audio file.
  */
-Media.prototype.stopRecord = function() {
+Media.prototype.stopRecord = function () {
     Media.onStatus(this.id, Media.MEDIA_ERROR, "Not supported");
 };
 
 /**
  * Pause recording audio file.
  */
-Media.prototype.pauseRecord = function() {
+Media.prototype.pauseRecord = function () {
     Media.onStatus(this.id, Media.MEDIA_ERROR, "Not supported");
 };
 
 /**
  * Returns the current amplitude of the current recording.
  */
-Media.prototype.getCurrentAmplitude = function() {
+Media.prototype.getCurrentAmplitude = function () {
     Media.onStatus(this.id, Media.MEDIA_ERROR, "Not supported");
 };
 
 /**
  * Resume recording an audio file.
  */
-Media.prototype.resumeRecord = function() {
+Media.prototype.resumeRecord = function () {
     Media.onStatus(this.id, Media.MEDIA_ERROR, "Not supported");
 };
 
 /**
  * Set rate of an autio file.
  */
-Media.prototype.setRate = function() {
+Media.prototype.setRate = function () {
     Media.onStatus(this.id, Media.MEDIA_ERROR, "Not supported");
 };
 
 /**
  * Release the resources.
  */
-Media.prototype.release = function() {
+Media.prototype.release = function () {
     try {
         delete this.node;
     } catch (err) {
         Media.onStatus(this.id, Media.MEDIA_ERROR, err);
-    }};
+    }
+};
 
 /**
  * Adjust the volume.
  */
-Media.prototype.setVolume = function(volume) {
+Media.prototype.setVolume = function (volume) {
     this.node.volume = volume;
 };
 
@@ -252,13 +256,13 @@ Media.prototype.setVolume = function(volume) {
  * @param msgType       The 'type' of update this is
  * @param value         Use of value is determined by the msgType
  */
-Media.onStatus = function(id, msgType, value) {
+Media.onStatus = function (id, msgType, value) {
 
     var media = mediaObjects[id];
 
     if (media) {
-        switch(msgType) {
-            case Media.MEDIA_STATE :
+        switch (msgType) {
+            case Media.MEDIA_STATE:
                 if (media.statusCallback) {
                     media.statusCallback(value);
                 }
@@ -268,18 +272,21 @@ Media.onStatus = function(id, msgType, value) {
                     }
                 }
                 break;
-            case Media.MEDIA_DURATION :
+            case Media.MEDIA_BUFFER:
+                media._buffer = value;
+                break;
+            case Media.MEDIA_DURATION:
                 media._duration = value;
                 break;
-            case Media.MEDIA_ERROR :
+            case Media.MEDIA_ERROR:
                 if (media.errorCallback) {
                     media.errorCallback(value);
                 }
                 break;
-            case Media.MEDIA_POSITION :
+            case Media.MEDIA_POSITION:
                 media._position = Number(value);
                 break;
-            default :
+            default:
                 if (console.error) {
                     console.error("Unhandled Media.onStatus :: " + msgType);
                 }
