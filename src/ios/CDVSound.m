@@ -29,7 +29,7 @@ static NSString * const PlayerPreloadObserverContext = @"PlayerPreloadObserverCo
 
 BOOL keepAvAudioSessionAlwaysActive = NO;
 
-@synthesize soundCache, avSession, currMediaId, statusCallbackId;
+@synthesize soundCache, soundPause, avSession, currMediaId, statusCallbackId;
 
 -(void) pluginInitialize
 {
@@ -162,6 +162,7 @@ BOOL keepAvAudioSessionAlwaysActive = NO;
     
     if ([self soundCache] == nil) {
         [self setSoundCache:[NSMutableDictionary dictionaryWithCapacity:1]];
+        [self setSoundPause:[NSMutableDictionary dictionaryWithCapacity:1]];
     } else {
         audioFile = [[self soundCache] objectForKey:mediaId];
     }
@@ -996,21 +997,24 @@ BOOL keepAvAudioSessionAlwaysActive = NO;
     NSDictionary *interuptionDict = notification.userInfo;
     // get the AVAudioSessionInterruptionTypeKey enum from the dictionary
     NSInteger interuptionType = [[interuptionDict valueForKey:AVAudioSessionInterruptionTypeKey] integerValue];
+    NSNumber *interruptionOption = [[notification userInfo] objectForKey:AVAudioSessionInterruptionOptionKey];
+
     // decide what to do based on interruption type here...
     switch (interuptionType) {
         case AVAudioSessionInterruptionTypeBegan:
             NSLog(@"Audio Session Interruption case started.");
             // fork to handling method here...
             // EG:[self handleInterruptionStarted];
-            
+//            NSLog(@"pause...%@", self.currMediaId);
+            [[self soundPause] removeAllObjects];
             for(NSString* mediaId in soundCache) {
+                NSLog(@"pauseing %@", mediaId);
                 CDVAudioFile* audioFile = [soundCache objectForKey:mediaId];
                 if (audioFile.player != nil) {
                     [audioFile.player pause];
-                } else if (avPlayer != nil) {
-                    [avPlayer pause];
                 }
-                
+                NSLog(@"pauseed %@", mediaId);
+                [[self soundPause] setObject:audioFile forKey:mediaId];
                 [self onStatus:MEDIA_STATE mediaId:mediaId param:@(MEDIA_PAUSED)];
             }
             break;
@@ -1019,6 +1023,24 @@ BOOL keepAvAudioSessionAlwaysActive = NO;
             NSLog(@"Audio Session Interruption case ended.");
             // fork to handling method here...
             // EG:[self handleInterruptionEnded];
+            if (interruptionOption.unsignedIntegerValue == AVAudioSessionInterruptionOptionShouldResume) {
+                // Here you should continue playback.
+                
+//                CDVAudioFile* audioFile = [soundCache objectForKey:self.currMediaId];
+//                [audioFile.player play];
+//                [self onStatus:MEDIA_STATE mediaId:self.currMediaId param:@(MEDIA_RUNNING)];
+                
+                for(NSString* mediaId in soundPause) {
+                    NSLog(@"starting %@", mediaId);
+                    CDVAudioFile* audioFile = [soundCache objectForKey:mediaId];
+                    if (audioFile.player != nil) {
+                        [audioFile.player play];
+                    }
+                    NSLog(@"started %@", mediaId);
+                    [[self soundPause] removeObjectForKey:mediaId];
+                    [self onStatus:MEDIA_STATE mediaId:mediaId param:@(MEDIA_RUNNING)];
+                }
+            }
             break;
             
         default:
