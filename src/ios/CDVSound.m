@@ -621,6 +621,7 @@ BOOL keepAvAudioSessionAlwaysActive = NO;
             }
             if (avPlayer != nil) {
                 [avPlayer pause];
+                [avPlayer.currentItem removeObserver:self forKeyPath:@"loadedTimeRanges"];
                 avPlayer = nil;
             }
             if (! keepAvAudioSessionAlwaysActive && self.avSession && ! [self isPlayingOrRecording]) {
