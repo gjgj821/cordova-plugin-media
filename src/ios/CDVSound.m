@@ -657,6 +657,33 @@ BOOL keepAvAudioSessionAlwaysActive = NO;
     [self.commandDelegate sendPluginResult:result callbackId:callbackId];
 }
 
+- (void)requestRecordPermission:(CDVInvokedUrlCommand*)command
+{
+    SEL rrpSel = NSSelectorFromString(@"requestRecordPermission:");
+    if ([self hasAudioSession] && [self.avSession respondsToSelector:rrpSel])
+    {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+        [self.avSession performSelector:rrpSel withObject:^(BOOL granted){
+            if (granted) {
+                [weakSelf onStatus:MEDIA_STATE mediaId:mediaId param:@(MEDIA_NONE)];
+            } else {
+                NSString* msg = @"Error creating audio session, microphone permission denied.";
+                NSLog(@"%@", msg);
+                audioFile.recorder = nil;
+                if (! keepAvAudioSessionAlwaysActive && weakSelf.avSession && ! [self isPlayingOrRecording]) {
+                    [weakSelf.avSession setActive:NO error:nil];
+                }
+                [weakSelf onStatus:MEDIA_ERROR mediaId:mediaId param:
+                    [self createAbortError:msg]];
+            }
+        }];
+#pragma clang diagnostic pop
+    } else {
+        [weakSelf onStatus:MEDIA_STATE mediaId:mediaId param:@(MEDIA_NONE)];
+    }
+}
+
 - (void)startRecordingAudio:(CDVInvokedUrlCommand*)command
 {
     NSString* callbackId = command.callbackId;
