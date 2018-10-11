@@ -26,8 +26,11 @@ import org.apache.cordova.PermissionHelper;
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioManager.OnAudioFocusChangeListener;
+import android.media.AudioRecord;
+import android.media.MediaRecorder;
 import android.net.Uri;
 import android.os.Build;
 
@@ -182,6 +185,7 @@ public class AudioHandler extends CordovaPlugin {
             return true;
         }
         else if (action.equals("requestRecordPermission")) {
+            recordId = args.getString(0);
             callbackRequest = false;
             promptForRecord();
         }
@@ -546,17 +550,30 @@ public class AudioHandler extends CordovaPlugin {
     {
         if(PermissionHelper.hasPermission(this, permissions[WRITE_EXTERNAL_STORAGE])  &&
                 PermissionHelper.hasPermission(this, permissions[RECORD_AUDIO])) {
+
             if (callbackRequest)
                 this.startRecordingAudio(recordId, FileHelper.stripFileProtocol(fileUriStr));
             else {
                 JSONObject statusDetails = new JSONObject();
-                try {
-                    statusDetails.put("id", recordId);
-                    statusDetails.put("msgType", AudioPlayer.MEDIA_STATE);
-                    statusDetails.put("value", AudioPlayer.STATE.MEDIA_NONE);
-                } catch (JSONException e) {
-                    LOG.e(AudioPlayer.LOG_TAG, "Failed to create status details", e);
+                if (!hasRecordPermission()){
+                    try {
+                        statusDetails.put("id", recordId);
+                        statusDetails.put("msgType", AudioPlayer.MEDIA_ERROR);
+                        statusDetails.put("value", AudioPlayer.MEDIA_ERR_ABORTED);
+                    } catch (JSONException e) {
+                        LOG.e(AudioPlayer.LOG_TAG, "Failed to create status details", e);
+                    }
+                }else{
+                    LOG.d(AudioPlayer.LOG_TAG, "promptForRecord success");
+                    try {
+                        statusDetails.put("id", recordId);
+                        statusDetails.put("msgType", AudioPlayer.MEDIA_STATE);
+                        statusDetails.put("value", AudioPlayer.STATE.MEDIA_NONE);
+                    } catch (JSONException e) {
+                        LOG.e(AudioPlayer.LOG_TAG, "Failed to create status details", e);
+                    }
                 }
+
                 sendEventMessage("status", statusDetails);
             }
         }
@@ -582,5 +599,56 @@ public class AudioHandler extends CordovaPlugin {
             return (audio.getCurrentAmplitude());
         }
         return 0;
+    }
+
+    private static boolean hasRecordPermission() {
+        int minBufferSize = AudioRecord.getMinBufferSize(8000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
+        int bufferSizeInBytes = 640;
+        byte[] audioData = new byte[bufferSizeInBytes];
+        int readSize = 0;
+        AudioRecord audioRecord = null;
+        try {
+            audioRecord = new AudioRecord(MediaRecorder.AudioSource.DEFAULT, 8000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, minBufferSize);
+            // 开始录音
+            audioRecord.startRecording();
+        } catch (Exception e) {
+            //可能情况一
+            if (audioRecord != null) {
+                audioRecord.release();
+                audioRecord = null;
+            }
+            return false;
+        }
+        // 检测是否在录音中,6.0以下会返回此状态
+        if (audioRecord.getRecordingState() != AudioRecord.RECORDSTATE_RECORDING) {
+            //可能情况二
+            if (audioRecord != null) {
+                audioRecord.stop();
+                audioRecord.release();
+                audioRecord = null;
+            }
+            return false;
+        } else {
+            // 正在录音
+            readSize = audioRecord.read(audioData, 0, bufferSizeInBytes);
+            // 检测是否可以获取录音结果
+            if (readSize <= 0) {
+                //可能情况三
+                if (audioRecord != null) {
+                    audioRecord.stop();
+                    audioRecord.release();
+                    audioRecord = null;
+                }
+                return false;
+            } else {
+                //有权限，正常启动录音并有数据
+                if (audioRecord != null) {
+                    audioRecord.stop();
+                    audioRecord.release();
+                    audioRecord = null;
+                }
+                return true;
+            }
+        }
     }
 }
