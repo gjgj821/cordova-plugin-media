@@ -130,6 +130,13 @@ Media.prototype.getCurrentPosition = function (success, fail) {
 };
 
 /**
+ * Request recording permission.
+ */
+Media.prototype.requestRecordPermission = function () {
+    exec(null, this.errorCallback, "Media", "requestRecordPermission", [this.id]);
+}
+
+/**
  * Start recording audio file.
  */
 Media.prototype.startRecord = function () {
