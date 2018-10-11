@@ -55,7 +55,7 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
     public enum MODE { NONE, PLAY, RECORD };
 
     // AudioPlayer states
-    public enum STATE { MEDIA_NONE,
+    public static enum STATE { MEDIA_NONE,
                         MEDIA_STARTING,
                         MEDIA_RUNNING,
                         MEDIA_PAUSED,
@@ -63,14 +63,14 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
                         MEDIA_LOADING
                       };
 
-    private static final String LOG_TAG = "AudioPlayer";
+    public static final String LOG_TAG = "AudioPlayer";
 
     // AudioPlayer message ids
-    private static int MEDIA_STATE = 1;
-    private static int MEDIA_DURATION = 2;
-    private static int MEDIA_POSITION = 3;
-    private static int MEDIA_BUFFER = 4;
-    private static int MEDIA_ERROR = 9;
+    public static final int MEDIA_STATE = 1;
+    public static final int MEDIA_DURATION = 2;
+    public static final int MEDIA_POSITION = 3;
+    public static final int MEDIA_BUFFER = 4;
+    public static final int MEDIA_ERROR = 9;
 
     // Media error codes
     private static int MEDIA_ERR_NONE_ACTIVE    = 0;
