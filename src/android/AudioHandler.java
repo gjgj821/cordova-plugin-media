@@ -187,7 +187,11 @@ public class AudioHandler extends CordovaPlugin {
         else if (action.equals("requestRecordPermission")) {
             recordId = args.getString(0);
             callbackRequest = false;
-            promptForRecord();
+            cordova.getThreadPool().execute(new Runnable() {
+                public void run() {
+                    promptForRecord();
+                }
+            });
         }
         else { // Unrecognized action.
             return false;
