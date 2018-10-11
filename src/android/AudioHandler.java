@@ -71,6 +71,7 @@ public class AudioHandler extends CordovaPlugin {
 
     private String recordId;
     private String fileUriStr;
+    private boolean callbackRequest = false;
 
     /**
      * Constructor.
@@ -115,6 +116,7 @@ public class AudioHandler extends CordovaPlugin {
             } catch (IllegalArgumentException e) {
                 fileUriStr = target;
             }
+            callbackRequest = true;
             promptForRecord();
         }
         else if (action.equals("stopRecordingAudio")) {
@@ -178,6 +180,10 @@ public class AudioHandler extends CordovaPlugin {
             float f = this.getCurrentAmplitudeAudio(args.getString(0));
             callbackContext.sendPluginResult(new PluginResult(status, f));
             return true;
+        }
+        else if (action.equals("requestRecordPermission")) {
+            callbackRequest = false;
+            promptForRecord();
         }
         else { // Unrecognized action.
             return false;
@@ -540,7 +546,19 @@ public class AudioHandler extends CordovaPlugin {
     {
         if(PermissionHelper.hasPermission(this, permissions[WRITE_EXTERNAL_STORAGE])  &&
                 PermissionHelper.hasPermission(this, permissions[RECORD_AUDIO])) {
-            this.startRecordingAudio(recordId, FileHelper.stripFileProtocol(fileUriStr));
+            if (callbackRequest)
+                this.startRecordingAudio(recordId, FileHelper.stripFileProtocol(fileUriStr));
+            else {
+                JSONObject statusDetails = new JSONObject();
+                try {
+                    statusDetails.put("id", recordId);
+                    statusDetails.put("msgType", AudioPlayer.MEDIA_STATE);
+                    statusDetails.put("value", AudioPlayer.STATE.MEDIA_NONE);
+                } catch (JSONException e) {
+                    LOG.e(AudioPlayer.LOG_TAG, "Failed to create status details", e);
+                }
+                sendEventMessage("status", statusDetails);
+            }
         }
         else if(PermissionHelper.hasPermission(this, permissions[RECORD_AUDIO]))
         {
