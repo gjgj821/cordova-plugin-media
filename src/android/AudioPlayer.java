@@ -73,8 +73,8 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
     public static final int MEDIA_ERROR = 9;
 
     // Media error codes
-    private static int MEDIA_ERR_NONE_ACTIVE    = 0;
-    private static int MEDIA_ERR_ABORTED        = 1;
+    public static int MEDIA_ERR_NONE_ACTIVE    = 0;
+    public static int MEDIA_ERR_ABORTED        = 1;
 //    private static int MEDIA_ERR_NETWORK        = 2;
 //    private static int MEDIA_ERR_DECODE         = 3;
 //    private static int MEDIA_ERR_NONE_SUPPORTED = 4;
