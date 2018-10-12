@@ -538,7 +538,15 @@ public class AudioHandler extends CordovaPlugin {
         {
             if(r == PackageManager.PERMISSION_DENIED)
             {
-                this.messageChannel.sendPluginResult(new PluginResult(PluginResult.Status.ERROR, PERMISSION_DENIED_ERROR));
+                JSONObject statusDetails = new JSONObject();
+                try {
+                    statusDetails.put("id", recordId);
+                    statusDetails.put("msgType", AudioPlayer.MEDIA_ERROR);
+                    statusDetails.put("value", AudioPlayer.MEDIA_ERR_ABORTED);
+                } catch (JSONException e) {
+                    LOG.e(AudioPlayer.LOG_TAG, "Failed to create status details", e);
+                }
+                this.sendEventMessage("status", statusDetails);
                 return;
             }
         }
